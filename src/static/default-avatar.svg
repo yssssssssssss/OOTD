@@ -1,0 +1,6 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="120" height="120" rx="16" fill="#F0F0F0"/>
+  <circle cx="60" cy="45" r="18" fill="#CCCCCC"/>
+  <path d="M30 95C30 80 42 70 60 70C78 70 90 80 90 95V105H30V95Z" fill="#CCCCCC"/>
+  <text x="60" y="115" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#999999">角色头像</text>
+</svg>
