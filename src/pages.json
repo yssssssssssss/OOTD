@@ -1,6 +1,21 @@
 {
 	"pages": [
 		{
+			"path": "pages/browse/browse",
+			"style": {
+				"navigationBarTitleText": "浏览",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/outfit-detail/outfit-detail",
+			"style": {
+				"navigationBarTitleText": "搭配详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "登录",
