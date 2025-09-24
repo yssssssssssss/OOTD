@@ -77,8 +77,10 @@ async function callCozeWorkflow(prompt: string, characterName?: string): Promise
       additional_params: {}
     };
     
-    // 调用Python脚本
-     const response = await fetch('http://localhost:3001/api/generate-outfit', {
+    console.log('调用后端API:', params);
+    
+    // 调用后端API
+    const response = await fetch('http://localhost:3001/api/generate-outfit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,11 +88,14 @@ async function callCozeWorkflow(prompt: string, characterName?: string): Promise
       body: JSON.stringify(params)
     });
     
+    console.log('后端API响应状态:', response.status);
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const result = await response.json();
+    console.log('后端API响应结果:', result);
     
     if (result.success) {
       return {
@@ -115,6 +120,8 @@ async function callCozeWorkflow(prompt: string, characterName?: string): Promise
  * 在实际项目中，这里应该调用真实的后端API
  */
 async function mockCozeWorkflow(prompt: string): Promise<CozeApiResponse> {
+  console.log('使用模拟数据模式');
+  
   // 模拟网络延迟
   await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000))
   
@@ -136,42 +143,12 @@ async function mockCozeWorkflow(prompt: string): Promise<CozeApiResponse> {
     return {
       success: true,
       imageUrl: randomImageUrl,
-      message: '搭配生成成功！'
+      message: '模拟模式：搭配生成成功！'
     }
   } else {
     return {
       success: false,
       error: '生成失败，请重试'
-    }
-  }
-}
-
-/**
- * 真实的API调用函数（待实现）
- * 这个函数应该调用你的后端服务，后端服务再调用coze_workflow_test1.py
- */
-export async function callRealCozeAPI(prompt: string): Promise<CozeApiResponse> {
-  try {
-    // 这里应该是真实的API调用
-    const response = await fetch('/api/generate-outfit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt })
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    return data
-  } catch (error) {
-    console.error('API调用失败:', error)
-    return {
-      success: false,
-      error: '网络请求失败'
     }
   }
 }

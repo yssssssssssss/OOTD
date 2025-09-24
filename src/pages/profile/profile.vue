@@ -91,30 +91,22 @@
       
       <!-- 管理角色按钮 -->
       <button class="manage-btn" @tap="goToCreateCharacter">管理角色</button>
+      
+      <!-- 退出账号按钮 -->
+      <button class="logout-btn" @tap="handleLogout">退出账号</button>
     </view>
     
-    <!-- 底部导航 -->
-    <view class="bottom-nav">
-      <view class="nav-item active">
-        <text class="nav-icon">👤</text>
-        <text class="nav-text">我的</text>
-      </view>
-      <view class="nav-item">
-        <text class="nav-icon">⚙️</text>
-        <text class="nav-text">设置</text>
-      </view>
-      <view class="nav-item">
-        <text class="nav-icon">👥</text>
-        <text class="nav-text">社区</text>
-      </view>
-    </view>
+    <!-- 底部导航栏 -->
+    <BottomNavigation />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import BottomNavigation from '@/components/BottomNavigation.vue'
 import { onShow } from '@dcloudio/uni-app'
 import { store, type Character } from '@/store/index'
+import { UserService } from '@/utils/userService'
 
 // 页面加载时初始化数据
 onMounted(async () => {
@@ -186,6 +178,44 @@ const selectAvatar = async (avatarUrl: string) => {
     uni.hideLoading()
   }
 }
+
+// 退出账号
+const handleLogout = () => {
+  uni.showModal({
+    title: '确认退出',
+    content: '确定要退出当前账号吗？',
+    success: (res) => {
+      if (res.confirm) {
+        try {
+          // 清除用户登录状态
+          UserService.clearCurrentUser()
+          
+          // 清除store中的用户数据
+          store.clearUserData()
+          
+          uni.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          })
+          
+          // 跳转到登录页面
+          setTimeout(() => {
+            uni.reLaunch({
+              url: '/pages/login/login'
+            })
+          }, 1000)
+          
+        } catch (error) {
+          console.error('退出登录失败:', error)
+          uni.showToast({
+            title: '退出失败',
+            icon: 'error'
+          })
+        }
+      }
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -193,6 +223,7 @@ const selectAvatar = async (avatarUrl: string) => {
   min-height: 100vh;
   background: #f8f9fa;
   position: relative;
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
 }
 
 .status-bar {
@@ -471,6 +502,7 @@ const selectAvatar = async (avatarUrl: string) => {
   border-radius: 16rpx;
   box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.3);
   transition: all 0.3s ease;
+  margin-bottom: 20rpx;
 }
 
 .manage-btn:active {
@@ -478,42 +510,21 @@ const selectAvatar = async (avatarUrl: string) => {
   box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
 }
 
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 120rpx;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  border-top: 1rpx solid #e9ecef;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.nav-item.active .nav-text {
-  color: #007aff;
-}
-
-.nav-icon {
+.logout-btn {
+  width: 100%;
+  height: 88rpx;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  color: #ffffff;
   font-size: 32rpx;
-  color: #666666;
+  font-weight: bold;
+  border: none;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 32rpx rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
 }
 
-.nav-item.active .nav-icon {
-  color: #007aff;
-}
-
-.nav-text {
-  font-size: 20rpx;
-  color: #666666;
+.logout-btn:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.3);
 }
 </style>

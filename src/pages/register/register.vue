@@ -53,7 +53,14 @@
     </view>
     
     <view class="button-group">
-      <button class="confirm-btn" @tap="handleRegister">确认</button>
+      <button 
+        class="confirm-btn" 
+        :class="{ 'loading': isRegistering }"
+        :disabled="isRegistering"
+        @tap="handleRegister"
+      >
+        {{ isRegistering ? '注册中...' : '确认' }}
+      </button>
       <button class="cancel-btn" @tap="handleCancel">取消</button>
     </view>
     
@@ -65,10 +72,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { UserService } from '@/utils/userService'
 
 // 响应式数据
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const isRegistering = ref(false) // 注册状态
 const formData = reactive({
   username: '',
   password: '',
@@ -90,14 +99,22 @@ const goBack = () => {
   uni.navigateBack()
 }
 
-// 注册处理
-const handleRegister = () => {
+// 表单验证
+const validateForm = (): boolean => {
   if (!formData.username.trim()) {
     uni.showToast({
       title: '请输入账号',
       icon: 'none'
     })
-    return
+    return false
+  }
+  
+  if (formData.username.length < 3) {
+    uni.showToast({
+      title: '账号长度至少3位',
+      icon: 'none'
+    })
+    return false
   }
   
   if (!formData.password.trim()) {
@@ -105,7 +122,15 @@ const handleRegister = () => {
       title: '请输入密码',
       icon: 'none'
     })
-    return
+    return false
+  }
+  
+  if (formData.password.length < 6) {
+    uni.showToast({
+      title: '密码长度至少6位',
+      icon: 'none'
+    })
+    return false
   }
   
   if (!formData.confirmPassword.trim()) {
@@ -113,7 +138,7 @@ const handleRegister = () => {
       title: '请确认密码',
       icon: 'none'
     })
-    return
+    return false
   }
   
   if (formData.password !== formData.confirmPassword) {
@@ -121,19 +146,82 @@ const handleRegister = () => {
       title: '两次密码输入不一致',
       icon: 'none'
     })
+    return false
+  }
+  
+  return true
+}
+
+// 注册处理
+const handleRegister = async () => {
+  // 表单验证
+  if (!validateForm()) {
     return
   }
   
-  // 这里可以添加注册逻辑
-  uni.showToast({
-    title: '注册成功',
-    icon: 'success'
-  })
+  // 防止重复提交
+  if (isRegistering.value) {
+    return
+  }
   
-  // 注册成功后返回登录页
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 1500)
+  isRegistering.value = true
+  
+  try {
+    // 显示加载提示
+    uni.showLoading({
+      title: '注册中...',
+      mask: true
+    })
+    
+    // 调用注册服务
+    const result = await UserService.registerUser(
+      formData.username.trim(),
+      formData.password.trim()
+    )
+    
+    // 隐藏加载提示
+    uni.hideLoading()
+    
+    if (result.success) {
+      // 注册成功
+      uni.showToast({
+        title: result.message,
+        icon: 'success',
+        duration: 2000
+      })
+      
+      // 清空表单
+      formData.username = ''
+      formData.password = ''
+      formData.confirmPassword = ''
+      
+      // 延迟返回登录页
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 2000)
+      
+    } else {
+      // 注册失败
+      uni.showToast({
+        title: result.message,
+        icon: 'none',
+        duration: 3000
+      })
+    }
+    
+  } catch (error) {
+    // 隐藏加载提示
+    uni.hideLoading()
+    
+    console.error('注册过程中发生错误:', error)
+    uni.showToast({
+      title: '注册失败，请稍后重试',
+      icon: 'none',
+      duration: 3000
+    })
+  } finally {
+    isRegistering.value = false
+  }
 }
 
 // 取消注册
@@ -259,6 +347,13 @@ const handleCancel = () => {
   margin-bottom: 24rpx;
   box-shadow: 0 8rpx 32rpx rgba(79, 172, 254, 0.3);
   transition: all 0.3s ease;
+}
+
+.confirm-btn:disabled,
+.confirm-btn.loading {
+  opacity: 0.6;
+  background: linear-gradient(135deg, #999 0%, #666 100%);
+  cursor: not-allowed;
 }
 
 .confirm-btn:active {

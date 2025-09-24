@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue'
 import { createDatabaseAdapter } from '@/config/database'
+import { UserService, type UserData } from '@/utils/userService'
 
 // 用户信息接口
 export interface UserInfo {
@@ -53,19 +54,32 @@ class Store {
   async init() {
     this.loading.value = true
     try {
-      // 从数据库获取用户信息
-      const userData = await this.dbAdapter.getUserById('1')
-      if (userData) {
-        Object.assign(this.userInfo, userData)
+      // 首先尝试从UserService获取当前登录用户
+      const currentUser = UserService.getCurrentUser()
+      if (currentUser) {
+        // 将UserData映射到UserInfo
+        Object.assign(this.userInfo, {
+          id: currentUser.user_id || '1',
+          username: currentUser.user_name,
+          email: '', // UserData中没有email字段
+          password: '', // 不存储密码
+          points: currentUser.user_score || 0,
+          userId: currentUser.user_id || 'unknown',
+          avatars: [],
+          currentAvatar: '/static/default-avatar.svg',
+          createdAt: currentUser.create_time || new Date().toISOString()
+        })
       } else {
-        // 如果没有找到用户，设置默认信息
+        // 如果没有登录用户，设置默认信息
         Object.assign(this.userInfo, {
           id: '1',
           username: 'ys',
           email: 'ys@example.com',
+          password: '',
           points: 0,
           userId: 'iVjnyp/JW8Whiv4ye+cLewTQDKXF0',
-          avatar: '/static/default-avatar.svg',
+          avatars: [],
+          currentAvatar: '/static/default-avatar.svg',
           createdAt: new Date().toISOString()
         })
       }
@@ -108,6 +122,26 @@ class Store {
   updateUserInfo(updates: Partial<UserInfo>) {
     Object.assign(this.userInfo, updates)
     this.saveUserInfo()
+  }
+
+  // 刷新用户信息（从UserService获取最新数据）
+  refreshUserInfo() {
+    const currentUser = UserService.getCurrentUser()
+    if (currentUser) {
+      // 将UserData映射到UserInfo
+      Object.assign(this.userInfo, {
+        id: currentUser.user_id || '1',
+        username: currentUser.user_name,
+        email: this.userInfo.email, // 保持现有email
+        password: '', // 不存储密码
+        points: currentUser.user_score || 0,
+        userId: currentUser.user_id || 'unknown',
+        avatars: this.userInfo.avatars, // 保持现有头像列表
+        currentAvatar: this.userInfo.currentAvatar, // 保持现有头像
+        createdAt: currentUser.create_time || new Date().toISOString()
+      })
+      this.saveUserInfo()
+    }
   }
 
   // 更新用户头像
@@ -241,6 +275,29 @@ class Store {
       uni.removeStorageSync('characters')
     } catch (error) {
       console.error('清空数据失败:', error)
+    }
+  }
+
+  // 清除用户数据（用于退出登录）
+  clearUserData() {
+    this.characters.value = []
+    Object.assign(this.userInfo, {
+      id: '',
+      username: '',
+      email: '',
+      password: '',
+      points: 0,
+      userId: '',
+      avatars: [],
+      currentAvatar: '/static/default-avatar.svg',
+      createdAt: ''
+    })
+    
+    try {
+      uni.removeStorageSync('userInfo')
+      uni.removeStorageSync('characters')
+    } catch (error) {
+      console.error('清除用户数据失败:', error)
     }
   }
 }

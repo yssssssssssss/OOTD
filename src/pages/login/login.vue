@@ -35,7 +35,14 @@
     </view>
     
     <view class="button-group">
-      <button class="login-btn" @tap="handleLogin">登录</button>
+      <button 
+        class="login-btn" 
+        :class="{ 'loading': isLogging }"
+        :disabled="isLogging"
+        @tap="handleLogin"
+      >
+        {{ isLogging ? '登录中...' : '登录' }}
+      </button>
       <button class="register-btn" @tap="goToRegister">注册</button>
     </view>
     
@@ -47,9 +54,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { UserService } from '@/utils/userService'
+import { store } from '@/store/index'
 
 // 响应式数据
 const showPassword = ref(false)
+const isLogging = ref(false)
 const formData = reactive({
   username: '',
   password: ''
@@ -61,7 +71,7 @@ const togglePassword = () => {
 }
 
 // 登录处理
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!formData.username.trim()) {
     uni.showToast({
       title: '请输入账号',
@@ -78,11 +88,72 @@ const handleLogin = () => {
     return
   }
   
-  // 这里可以添加登录逻辑
-  uni.showToast({
-    title: '登录成功',
-    icon: 'success'
-  })
+  // 防止重复提交
+  if (isLogging.value) {
+    return
+  }
+  
+  isLogging.value = true
+  
+  try {
+    // 显示加载提示
+    uni.showLoading({
+      title: '登录中...',
+      mask: true
+    })
+    
+    // 调用登录服务
+    const result = await UserService.loginUser(
+      formData.username.trim(),
+      formData.password.trim()
+    )
+    
+    // 隐藏加载提示
+    uni.hideLoading()
+    
+    if (result.success) {
+      // 登录成功，刷新store中的用户信息
+      store.refreshUserInfo()
+      
+      uni.showToast({
+        title: result.message,
+        icon: 'success',
+        duration: 2000
+      })
+      
+      // 清空表单
+      formData.username = ''
+      formData.password = ''
+      
+      // 延迟跳转到主页
+      setTimeout(() => {
+        uni.navigateTo({
+          url: '/pages/browse/browse'
+        })
+      }, 1500)
+      
+    } else {
+      // 登录失败
+      uni.showToast({
+        title: result.message,
+        icon: 'none',
+        duration: 3000
+      })
+    }
+    
+  } catch (error) {
+    // 隐藏加载提示
+    uni.hideLoading()
+    
+    console.error('登录过程中发生错误:', error)
+    uni.showToast({
+      title: '登录失败，请稍后重试',
+      icon: 'none',
+      duration: 3000
+    })
+  } finally {
+    isLogging.value = false
+  }
 }
 
 // 跳转到注册页面
@@ -90,8 +161,7 @@ const goToRegister = () => {
   uni.navigateTo({
     url: '/pages/register/register'
   })
-}
-</script>
+}</script>
 
 <style scoped>
 .login-container {

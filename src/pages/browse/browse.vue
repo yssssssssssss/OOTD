@@ -72,11 +72,15 @@
         </view>
       </view>
     </view>
+    
+    <!-- 底部导航栏 -->
+    <BottomNavigation />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import BottomNavigation from '@/components/BottomNavigation.vue'
 
 // 轮播图数据
 const bannerList = ref([
@@ -289,6 +293,7 @@ onMounted(() => {
 .browse-page {
   background-color: #f8f8f8;
   min-height: 100vh;
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
   
   /* 图片尺寸变量 - 方便统一修改 */
   --outfit-item-width: 200rpx;    /* 一衣多穿图片宽度 */

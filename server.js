@@ -36,8 +36,8 @@ app.post('/api/generate-outfit', async (req, res) => {
     fs.writeFileSync(tempFile, JSON.stringify(pythonParams, null, 2));
     
     // 调用Python脚本，传递临时文件路径
-    // 使用测试版本确保演示功能正常，真实API需要有效的token
-    const pythonScript = 'test_coze_workflow.py'; // 测试版本，可改为 'coze_workflow_test1.py'
+    // 使用真实的Coze API脚本
+    const pythonScript = 'coze_workflow_test1.py'; // 使用真实的Coze API脚本
     const pythonProcess = spawn('python', [
       path.join(__dirname, pythonScript),
       '--file',
@@ -58,8 +58,18 @@ app.post('/api/generate-outfit', async (req, res) => {
     pythonProcess.on('close', (code) => {
       if (code === 0) {
         try {
+          // 过滤输出，移除调试信息
+          const cleanOutput = output
+            .split('\n')
+            .filter(line => 
+              !line.includes('got message') && 
+              !line.includes('got error') && 
+              line.trim() !== ''
+            )
+            .join('\n');
+          
           // 尝试解析Python脚本的输出
-          const lines = output.trim().split('\n');
+          const lines = cleanOutput.trim().split('\n');
           const lastLine = lines[lines.length - 1];
           
           if (lastLine.startsWith('{')) {
@@ -67,30 +77,36 @@ app.post('/api/generate-outfit', async (req, res) => {
             res.json({
               success: true,
               message: result.message || '搭配生成成功',
-              imageUrl: '/static/generated-outfit.jpg', // 这里应该是实际生成的图片URL
-              output: output // 包含完整输出用于调试
+              imageUrl: result.imageUrl || '/static/generated-outfit.jpg',
+              output: process.env.NODE_ENV === 'production' ? '搭配生成完成' : cleanOutput
             });
           } else {
             res.json({
               success: true,
               message: '搭配生成完成',
-              output: output
+              imageUrl: '/static/generated-outfit.jpg',
+              output: process.env.NODE_ENV === 'production' ? '搭配生成完成' : cleanOutput
             });
           }
         } catch (parseError) {
-          console.error('解析Python输出失败:', parseError);
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('解析Python输出失败:', parseError);
+          }
           res.json({
             success: true,
             message: '搭配生成完成',
-            output: output
+            imageUrl: '/static/generated-outfit.jpg',
+            output: '搭配生成完成'
           });
         }
       } else {
-        console.error('Python脚本执行失败:', errorOutput);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Python脚本执行失败:', errorOutput);
+        }
         res.status(500).json({
           success: false,
           error: `Python脚本执行失败 (退出码: ${code})`,
-          details: errorOutput
+          details: process.env.NODE_ENV === 'production' ? '执行失败' : errorOutput
         });
       }
     });

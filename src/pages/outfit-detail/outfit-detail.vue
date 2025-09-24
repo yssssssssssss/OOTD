@@ -21,7 +21,20 @@
           :src="generatedImageUrl" 
           class="generated-image"
           mode="aspectFit"
+          @load="onImageLoad"
+          @error="onImageError"
+          :show-menu-by-longpress="true"
         />
+        <view v-else-if="isGenerating" class="placeholder-image">
+          <view class="loading-animation">
+            <text class="loading-icon">⏳</text>
+            <text class="loading-dots">{{ loadingDots }}</text>
+          </view>
+          <text class="placeholder-text">{{ generationStatus }}</text>
+          <view class="progress-bar">
+            <view class="progress-fill" :style="{ width: generationProgress + '%' }"></view>
+          </view>
+        </view>
         <view v-else class="placeholder-image">
           <text class="placeholder-icon">📷</text>
           <text class="placeholder-text">点击"试同款"生成搭配图片</text>
@@ -91,17 +104,25 @@
         </view>
       </view>
     </view>
+    
+    <!-- 底部导航栏 -->
+    <BottomNavigation />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import BottomNavigation from '@/components/BottomNavigation.vue'
 import { generateOutfit, type OutfitGenerationRequest } from '@/utils/cozeApi'
+import { ImageGenerationService } from '@/utils/imageGenerationService'
 
 // 响应式数据
 const showCharacterModal = ref(false)
 const isGenerating = ref(false)
 const generatedImageUrl = ref('')
+const generationStatus = ref('正在生成搭配图片...')
+const generationProgress = ref(0)
+const loadingDots = ref('')
 
 // 选中的角色
 const selectedCharacter = ref({
@@ -138,6 +159,19 @@ const characters = ref([
     avatar: '/static/default-avatar.svg'
   }
 ])
+
+// 图片事件处理
+const onImageLoad = () => {
+  console.log('图片加载成功:', generatedImageUrl.value)
+}
+
+const onImageError = (e: any) => {
+  console.error('图片加载失败:', e)
+  uni.showToast({
+    title: '图片加载失败',
+    icon: 'error'
+  })
+}
 
 // 方法定义
 const goBack = () => {
@@ -180,42 +214,100 @@ const checkQuery = () => {
 const tryOutfit = async () => {
   if (isGenerating.value) return
   
+  // 重置所有状态
+  generatedImageUrl.value = ''
   isGenerating.value = true
+  generationProgress.value = 0
+  generationStatus.value = '正在准备生成参数...'
+  loadingDots.value = ''
+  
+  // 启动加载动画
+  startLoadingAnimation()
   
   try {
     // 构建动态Prompt
     const dynamicPrompt = buildDynamicPrompt()
+    generationProgress.value = 20
+    generationStatus.value = '正在连接AI服务...'
     
-    // 构建发送给Coze API的请求
-    const request: OutfitGenerationRequest = {
+    // 使用新的图片生成服务
+    const result = await ImageGenerationService.generateOutfit({
       prompt: dynamicPrompt,
       characterName: selectedCharacter.value.name,
-      style: '现代简约',
-      season: getSeason(new Date()),
-      occasion: '日常工作和休闲'
-    }
-
-    // 调用Coze API
-    const response = await generateOutfit(request)
+      additionalParams: {
+        style: '现代简约',
+        season: getSeason(new Date()),
+        occasion: '日常工作和休闲'
+      }
+    })
     
-    if (response.success && response.imageUrl) {
-      generatedImageUrl.value = response.imageUrl
-      uni.showToast({
-        title: response.message || '搭配生成成功！',
-        icon: 'success'
-      })
+    generationProgress.value = 90
+    generationStatus.value = '正在处理生成结果...'
+    
+    if (result.success && result.imageUrl) {
+      generationProgress.value = 100
+      generationStatus.value = '生成完成！'
+      
+      // 延迟一下显示完成状态
+      setTimeout(() => {
+        generatedImageUrl.value = result.imageUrl
+        uni.showToast({
+          title: result.message || '搭配生成成功！',
+          icon: 'success'
+        })
+        
+        // 显示保存到历史记录的提示
+        if (result.historyItem) {
+          setTimeout(() => {
+            uni.showToast({
+              title: '已保存到历史记录',
+              icon: 'none'
+            })
+          }, 2000)
+        }
+      }, 500)
     } else {
-      throw new Error(response.error || '生成失败')
+      throw new Error(result.error || '生成失败')
     }
   } catch (error) {
     console.error('生成搭配失败:', error)
+    generationStatus.value = '生成失败，请重试'
     uni.showToast({
       title: error instanceof Error ? error.message : '生成失败，请重试',
       icon: 'error'
     })
   } finally {
-    isGenerating.value = false
+    stopLoadingAnimation()
+    setTimeout(() => {
+      isGenerating.value = false
+      generationProgress.value = 0
+      generationStatus.value = '正在生成搭配图片...'
+    }, 1000)
   }
+}
+
+// 加载动画相关
+let loadingInterval: any = null
+
+const startLoadingAnimation = () => {
+  let dotCount = 0
+  loadingInterval = setInterval(() => {
+    dotCount = (dotCount + 1) % 4
+    loadingDots.value = '.'.repeat(dotCount)
+    
+    // 模拟进度增长
+    if (generationProgress.value < 80) {
+      generationProgress.value += Math.random() * 5
+    }
+  }, 500)
+}
+
+const stopLoadingAnimation = () => {
+  if (loadingInterval) {
+    clearInterval(loadingInterval)
+    loadingInterval = null
+  }
+  loadingDots.value = ''
 }
 
 // 构建动态Prompt的函数
@@ -260,10 +352,13 @@ const getTimeOfDay = (date: Date) => {
 
 <style scoped>
 .outfit-detail {
+  height: 100vh;
   min-height: 100vh;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
 }
 
 /* 导航栏样式 */
@@ -306,24 +401,31 @@ const getTimeOfDay = (date: Date) => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 80rpx);
+  overflow: hidden;
 }
 
 /* 图片展示区域 */
 .image-display {
-  flex: 1;
   background-color: #f8f8f8;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 600rpx;
+  height: 800rpx;
+  width: calc(100% - 40rpx);
   margin: 20rpx;
   border-radius: 12rpx;
+  position: relative;
 }
 
 .generated-image {
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 12rpx;
+  object-fit: contain;
+  display: block;
 }
 
 .placeholder-image {
@@ -332,6 +434,9 @@ const getTimeOfDay = (date: Date) => {
   align-items: center;
   justify-content: center;
   color: #999999;
+  width: 100%;
+  height: 100%;
+  min-height: 400rpx;
 }
 
 .placeholder-icon {
@@ -341,6 +446,53 @@ const getTimeOfDay = (date: Date) => {
 
 .placeholder-text {
   font-size: 28rpx;
+}
+
+/* 加载动画样式 */
+.loading-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+}
+
+.loading-icon {
+  font-size: 48rpx;
+  animation: rotate 2s linear infinite;
+}
+
+.loading-dots {
+  font-size: 32rpx;
+  color: #666666;
+  margin-left: 10rpx;
+  min-width: 60rpx;
+}
+
+/* 进度条样式 */
+.progress-bar {
+  width: 80%;
+  height: 8rpx;
+  background-color: #f0f0f0;
+  border-radius: 4rpx;
+  margin-top: 30rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a8e6cf 0%, #88d8a3 100%);
+  border-radius: 4rpx;
+  transition: width 0.3s ease;
+}
+
+/* 旋转动画 */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 底部操作区域 */

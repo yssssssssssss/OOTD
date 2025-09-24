@@ -50,8 +50,11 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4030620241128001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4030620241128001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4030620241128001",
+    "@supabase/supabase-js": "^2.57.4",
+    "abort-controller": "^3.0.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "node-fetch": "^2.7.0",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"
   },

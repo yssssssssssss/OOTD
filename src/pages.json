@@ -22,7 +22,6 @@
 				"navigationStyle": "custom"
 			}
 		},
-
 		{
 			"path": "pages/profile/profile",
 			"style": {
@@ -30,7 +29,6 @@
 				"navigationStyle": "custom"
 			}
 		},
-
 		{
 			"path": "pages/create-character/create-character",
 			"style": {
@@ -38,7 +36,6 @@
 				"navigationStyle": "custom"
 			}
 		},
-
 		{
 			"path": "pages/register/register",
 			"style": {
@@ -46,11 +43,20 @@
 				"navigationStyle": "custom"
 			}
 		},
-		
 		{
-			"path": "pages/index/index",
+			"path": "pages/history/history",
 			"style": {
-				"navigationBarTitleText": "首页"
+				"navigationBarTitleText": "历史",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/test-users/test-users",
+			"style": {
+				"navigationBarTitleText": "创建测试用户",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
 			}
 		}
 	],
