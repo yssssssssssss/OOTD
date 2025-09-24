@@ -115,6 +115,7 @@ import { ref, reactive } from 'vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 import { generateOutfit, type OutfitGenerationRequest } from '@/utils/cozeApi'
 import { ImageGenerationService } from '@/utils/imageGenerationService'
+import { store } from '@/store/index'
 
 // 响应式数据
 const showCharacterModal = ref(false)
@@ -312,6 +313,15 @@ const stopLoadingAnimation = () => {
 
 // 构建动态Prompt的函数
 const buildDynamicPrompt = () => {
+  // 获取从browse页面保存的Prompt
+  const savedPrompt = store.getSelectedPrompt()
+  
+  if (savedPrompt) {
+    // 如果有保存的Prompt，使用它并结合角色信息
+    return `${savedPrompt}。请为角色"${selectedCharacter.value.name}"生成对应的搭配效果图。`
+  }
+  
+  // 如果没有保存的Prompt，使用默认的通用Prompt
   const currentDate = new Date()
   const season = getSeason(currentDate)
   const timeOfDay = getTimeOfDay(currentDate)
@@ -322,11 +332,7 @@ const buildDynamicPrompt = () => {
 3. 时间：${timeOfDay}，适合当前时段的活动
 4. 色彩：协调统一，突出个人魅力
 5. 场合：适合日常工作和休闲活动
-6. 请生成高质量的搭配效果图，包含上衣、下装、鞋子等完整搭配
-7. 搭配风格要符合当下流行趋势，同时保持实用性
-8. 考虑${selectedCharacter.value.name}的身材特点，选择最适合的版型和款式
-9. 提供具体的搭配建议和穿搭技巧
-10. 生成的搭配要有创新性，避免过于常见的组合`
+6. 请生成高质量的搭配效果图，包含上衣、下装、鞋子等完整搭配`
 }
 
 // 获取当前季节

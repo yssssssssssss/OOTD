@@ -100,9 +100,12 @@ interface FormData {
 const formData = reactive<FormData>({
   imageUrl: '',
   characterName: '',
-  hairStyle: '',
+  hairStyle: '短发', // 设置默认发型
   hairColor: ''
 })
+
+// 本地图片路径（用于延迟上传）
+const localImagePath = ref('')
 
 // 发型选项
 const hairStyles = ref([
@@ -125,10 +128,21 @@ const uploading = ref(false)
 
 // 表单验证
 const isFormValid = computed(() => {
-  return formData.imageUrl && 
+  const valid = formData.imageUrl && 
          formData.characterName.trim() && 
          formData.hairStyle && 
          formData.hairColor.trim()
+  
+  // 调试信息
+  console.log('表单验证状态:', {
+    imageUrl: !!formData.imageUrl,
+    characterName: !!formData.characterName.trim(),
+    hairStyle: !!formData.hairStyle,
+    hairColor: !!formData.hairColor.trim(),
+    isValid: valid
+  })
+  
+  return valid
 })
 
 // 返回上一页
@@ -144,7 +158,14 @@ const chooseImage = () => {
     sourceType: ['album', 'camera'],
     success: (res) => {
       const tempFilePath = res.tempFilePaths[0]
-      uploadImage(tempFilePath)
+      // 保存本地路径，不立即上传
+      localImagePath.value = tempFilePath
+      formData.imageUrl = tempFilePath // 临时设置为本地路径用于预览
+      
+      uni.showToast({
+        title: '图片选择成功',
+        icon: 'success'
+      })
     },
     fail: (error) => {
       console.error('选择图片失败:', error)
@@ -156,39 +177,33 @@ const chooseImage = () => {
   })
 }
 
-// 上传图片到图传服务
+// 上传图片到图床
 const uploadImage = async (filePath: string) => {
   uploading.value = true
   
   try {
-    // 这里应该调用后端API上传图片到图传服务
-    // const response = await uni.uploadFile({
-    //   url: '/api/upload/image',
-    //   filePath: filePath,
-    //   name: 'file',
-    //   formData: {
-    //     type: 'character'
-    //   }
-    // })
-    // 
-    // const result = JSON.parse(response.data)
-    // if (result.success) {
-    //   formData.imageUrl = result.data.url
-    // } else {
-    //   throw new Error(result.message)
-    // }
-    
-    // 临时使用本地图片路径
-    formData.imageUrl = filePath
-    
-    uni.showToast({
-      title: '上传成功',
-      icon: 'success'
+    // 调用后端API上传图片
+    const response = await uni.uploadFile({
+      url: 'http://localhost:3001/api/upload-avatar', // 只上传图片
+      filePath: filePath,
+      name: 'image'
     })
+    
+    const result = JSON.parse(response.data)
+    if (result.success) {
+      formData.imageUrl = result.imageUrl // 获取图片URL
+      
+      uni.showToast({
+        title: '图片上传成功',
+        icon: 'success'
+      })
+    } else {
+      throw new Error(result.error || '上传失败')
+    }
   } catch (error) {
     console.error('上传图片失败:', error)
     uni.showToast({
-      title: '上传失败',
+      title: '图片上传失败',
       icon: 'error'
     })
   } finally {
@@ -204,7 +219,12 @@ const onHairStyleChange = (e: any) => {
 
 // 创建角色
 const createCharacter = async () => {
+  console.log('=== 开始创建角色 ===')
+  console.log('表单数据:', formData)
+  console.log('表单验证状态:', isFormValid.value)
+  
   if (!isFormValid.value) {
+    console.log('表单验证失败，显示提示')
     uni.showToast({
       title: '请完善角色信息',
       icon: 'error'
@@ -214,36 +234,71 @@ const createCharacter = async () => {
   
   try {
     uni.showLoading({
-      title: '创建中...'
+      title: '上传图片中...'
     })
     
-    // 使用store添加角色
-    const newCharacter = await store.addCharacter({
-      name: formData.characterName,
-      imageUrl: formData.imageUrl,
+    // 先上传图片到图床
+    let finalImageUrl = ''
+    if (localImagePath.value) {
+      console.log('开始上传图片到图床:', localImagePath.value)
+      const uploadResponse = await uni.uploadFile({
+        url: 'http://localhost:3001/api/upload-avatar',
+        filePath: localImagePath.value,
+        name: 'image'
+      })
+      
+      const uploadResult = JSON.parse(uploadResponse.data)
+      if (uploadResult.success) {
+        finalImageUrl = uploadResult.imageUrl
+        console.log('图片上传成功:', finalImageUrl)
+      } else {
+        throw new Error(uploadResult.error || '图片上传失败')
+      }
+    }
+    
+    uni.showLoading({
+      title: '创建角色中...'
+    })
+    
+    // 获取当前用户ID
+    const currentUserId = store.userInfo.userId
+    console.log('当前用户ID:', currentUserId)
+    
+    const requestData = {
+      userId: currentUserId,
+      characterName: formData.characterName,
+      imageUrl: finalImageUrl, // 使用上传后的图片URL
       hairStyle: formData.hairStyle,
       hairColor: formData.hairColor
+    }
+    console.log('准备发送的数据:', requestData)
+    
+    // 调用新的后端API创建角色
+    console.log('开始调用后端API...')
+    const response = await uni.request({
+      url: 'http://localhost:3001/api/create-character',
+      method: 'POST',
+      data: requestData
     })
     
-    // 这里应该调用后端API保存角色数据
-    // const response = await uni.request({
-    //   url: '/api/characters',
-    //   method: 'POST',
-    //   data: newCharacter
-    // })
+    console.log('后端API响应:', response)
     
-    uni.hideLoading()
-    
-    uni.showToast({
-      title: '创建成功',
-      icon: 'success',
-      duration: 2000
-    })
-    
-    // 延迟返回上一页
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 2000)
+    if (response.statusCode === 200 && response.data.success) {
+      uni.hideLoading()
+      
+      uni.showToast({
+        title: '创建成功',
+        icon: 'success',
+        duration: 2000
+      })
+      
+      // 延迟返回上一页
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 2000)
+    } else {
+      throw new Error(response.data.error || '创建失败')
+    }
     
   } catch (error) {
     uni.hideLoading()

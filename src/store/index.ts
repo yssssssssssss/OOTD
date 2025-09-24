@@ -31,11 +31,11 @@ class Store {
   // 用户信息
   userInfo = reactive<UserInfo>({
     id: '1',
-    username: 'ys',
-    email: 'ys@example.com',
+    username: 'aaaa',
+    email: 'aaaa@example.com',
     password: '',
     points: 0,
-    userId: 'iVjnyp/JW8Whiv4ye+cLewTQDKXF0',
+    userId: '4f0cdde4-9be3-4b77-8564-6f02c0de6198', // 使用数据库中实际存在的用户ID
     avatars: [],
     currentAvatar: '/static/default-avatar.svg',
     createdAt: new Date().toISOString()
@@ -46,6 +46,9 @@ class Store {
 
   // 加载状态
   loading = ref(false)
+
+  // 选中的Prompt（用于图片生成）
+  selectedPrompt = ref<string>('')
 
   // 数据库适配器，通过配置文件管理
   private dbAdapter = createDatabaseAdapter()
@@ -70,18 +73,8 @@ class Store {
           createdAt: currentUser.create_time || new Date().toISOString()
         })
       } else {
-        // 如果没有登录用户，设置默认信息
-        Object.assign(this.userInfo, {
-          id: '1',
-          username: 'ys',
-          email: 'ys@example.com',
-          password: '',
-          points: 0,
-          userId: 'iVjnyp/JW8Whiv4ye+cLewTQDKXF0',
-          avatars: [],
-          currentAvatar: '/static/default-avatar.svg',
-          createdAt: new Date().toISOString()
-        })
+        // 如果没有登录用户，保持当前的默认信息（不覆盖已设置的userId）
+        console.log('使用默认用户信息，当前userId:', this.userInfo.userId)
       }
       
       // 加载角色数据
@@ -298,6 +291,41 @@ class Store {
       uni.removeStorageSync('characters')
     } catch (error) {
       console.error('清除用户数据失败:', error)
+    }
+  }
+
+  // 设置选中的Prompt
+  setSelectedPrompt(prompt: string) {
+    this.selectedPrompt.value = prompt
+    try {
+      uni.setStorageSync('selectedPrompt', prompt)
+    } catch (error) {
+      console.error('保存选中Prompt失败:', error)
+    }
+  }
+
+  // 获取选中的Prompt
+  getSelectedPrompt(): string {
+    if (!this.selectedPrompt.value) {
+      try {
+        const storedPrompt = uni.getStorageSync('selectedPrompt')
+        if (storedPrompt) {
+          this.selectedPrompt.value = storedPrompt
+        }
+      } catch (error) {
+        console.error('获取选中Prompt失败:', error)
+      }
+    }
+    return this.selectedPrompt.value
+  }
+
+  // 清除选中的Prompt
+  clearSelectedPrompt() {
+    this.selectedPrompt.value = ''
+    try {
+      uni.removeStorageSync('selectedPrompt')
+    } catch (error) {
+      console.error('清除选中Prompt失败:', error)
     }
   }
 }
